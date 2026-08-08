@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Derivazioni</title>
+<title>Theoretical</title>
 <style>
   :root{
     --bg:#0b0f0d; --panel:#101614; --line:#1f2b26; --fg:#c8e6c9;
@@ -64,7 +64,7 @@
 <div class="game">
 
   <div class="hud">
-    <h1 onclick="showMenu()">&gt; DERIVAZIONI</h1>
+    <h1 onclick="showMenu()">&gt; THEORETICAL</h1>
     <div class="level-badge" id="levelBadge">menu</div>
   </div>
 
@@ -82,6 +82,13 @@
       <div>
         <div class="name">livello 2 — branching reale</div>
         <div class="desc">regolare (tipo 3), alfabeto {0,1}: S → 0S | 1S | 1</div>
+      </div>
+      <div class="go">gioca ▸</div>
+    </div>
+    <div class="menu-item" id="menuLv3" onclick="goLevel(3)">
+      <div>
+        <div class="name">livello 3 — bilanciamento</div>
+        <div class="desc">context-free non regolare (tipo 2): S → aSb | ab, linguaggio aⁿbⁿ</div>
       </div>
       <div class="go">gioca ▸</div>
     </div>
@@ -126,6 +133,27 @@
         <button class="ghost" onclick="lv2newTarget()">▸ nuovo target</button>
       </div>
       <div class="status" id="lv2-status"></div>
+    </div>
+  </div>
+
+  <!-- LEVEL 3 -->
+  <div id="view-lv3" class="hidden">
+    <div class="gtype">grammatica di tipo 2 (context-free), non regolare</div>
+    <div class="sub">produzioni: S → aSb | ab — linguaggio: aⁿbⁿ, n ≥ 1 (nessun automa a stati finiti lo riconosce: serve una pila)</div>
+    <div class="panel">
+      <div class="label">target — posizioni da riempire</div>
+      <div class="slots" id="lv3-targetSlots"></div>
+    </div>
+    <div class="panel">
+      <div class="label">progresso derivazione (si costruisce dall'esterno verso il centro)</div>
+      <div class="slots" id="lv3-progressSlots"></div>
+      <div class="rules" id="lv3-rules"></div>
+      <div class="actions">
+        <button class="ghost" id="lv3-undoBtn" onclick="lv3undo()">← annulla ultima mossa</button>
+        <button class="ghost" onclick="lv3restart()">↺ ricomincia</button>
+        <button class="ghost" onclick="lv3newTarget()">▸ nuovo target</button>
+      </div>
+      <div class="status" id="lv3-status"></div>
     </div>
   </div>
 
