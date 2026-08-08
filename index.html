@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Derivazioni</title>
+<style>
+  :root{
+    --bg:#0b0f0d; --panel:#101614; --line:#1f2b26; --fg:#c8e6c9;
+    --dim:#5f7a6d; --accent:#39ff88; --accent2:#ffb347; --win:#39ff88; --err:#ff5f56;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg); color:var(--fg); font-family:'Courier New',monospace; margin:0; padding:24px; display:flex; justify-content:center}
+  .game{width:100%; max-width:560px}
+  .hud{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px}
+  h1{font-size:14px; color:var(--accent); letter-spacing:1px; margin:0; cursor:pointer}
+  .level-badge{font-size:11px; color:var(--dim); border:1px solid var(--line); padding:2px 8px; border-radius:10px}
+  .gtype{font-size:12px; color:var(--accent2); margin-bottom:4px}
+  .sub{color:var(--dim); font-size:12px; margin-bottom:20px}
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:18px; margin-bottom:14px}
+  .label{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px}
+
+  .slots{display:flex; gap:6px}
+  .slot{width:34px; height:34px; border:1px solid var(--line); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:16px}
+  .slot.filled{border-color:var(--accent); color:var(--accent); background:rgba(57,255,136,.08)}
+  .slot.wrong{border-color:var(--err); color:var(--err); background:rgba(255,95,86,.08)}
+  .slot.pending{color:var(--dim)}
+
+  .rules{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
+  button.rule{background:transparent; border:1px solid var(--accent); color:var(--accent); font-family:inherit; font-size:15px; padding:10px 16px; border-radius:5px; cursor:pointer}
+  button.rule:hover:not(:disabled){background:var(--accent); color:#000}
+  button.rule:disabled{opacity:.2; cursor:default; border-color:var(--dim); color:var(--dim)}
+
+  .actions{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap}
+  button.ghost{background:transparent; border:1px solid var(--dim); color:var(--dim); font-family:inherit; font-size:12px; padding:8px 14px; border-radius:5px; cursor:pointer}
+  button.ghost:hover:not(:disabled){border-color:var(--fg); color:var(--fg)}
+  button.ghost:disabled{opacity:.2; cursor:default}
+
+  .status{font-size:12px; color:var(--dim); margin-top:12px}
+  .status b{color:var(--fg)}
+  .status.err{color:var(--err)}
+
+  .menu-item{
+    display:flex; justify-content:space-between; align-items:center;
+    border:1px solid var(--line); border-radius:5px; padding:14px 16px; margin-bottom:10px; cursor:pointer;
+  }
+  .menu-item:hover{border-color:var(--accent)}
+  .menu-item.locked{opacity:.35; cursor:default}
+  .menu-item.locked:hover{border-color:var(--line)}
+  .menu-item .name{font-size:14px; color:var(--fg)}
+  .menu-item .desc{font-size:11px; color:var(--dim); margin-top:2px}
+  .menu-item .go{color:var(--accent); font-size:13px}
+
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center}
+  .overlay.show{display:flex}
+  .overlay .box{background:var(--panel); border:1px solid var(--accent); border-radius:8px; padding:32px; text-align:center; max-width:400px}
+  .overlay .box h2{color:var(--win); margin:0 0 10px; font-size:20px}
+  .overlay .box p{color:var(--dim); font-size:13px; margin:0 0 18px}
+
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="game">
+
+  <div class="hud">
+    <h1 onclick="showMenu()">&gt; DERIVAZIONI</h1>
+    <div class="level-badge" id="levelBadge">menu</div>
+  </div>
+
+  <!-- MENU -->
+  <div id="view-menu">
+    <div class="sub">scegli un livello — ogni livello introduce un tipo di grammatica diverso</div>
+    <div class="menu-item" onclick="goLevel(1)">
+      <div>
+        <div class="name">livello 1 — un simbolo, una scelta</div>
+        <div class="desc">grammatica regolare (tipo 3), simbolo e direzione variano a ogni turno</div>
+      </div>
+      <div class="go">gioca ▸</div>
+    </div>
+    <div class="menu-item" id="menuLv2" onclick="goLevel(2)">
+      <div>
+        <div class="name">livello 2 — branching reale</div>
+        <div class="desc">regolare (tipo 3), alfabeto {0,1}: S → 0S | 1S | 1</div>
+      </div>
+      <div class="go">gioca ▸</div>
+    </div>
+  </div>
+
+  <!-- LEVEL 1 -->
+  <div id="view-lv1" class="hidden">
+    <div class="gtype" id="lv1-gtype"></div>
+    <div class="sub" id="lv1-grammarLine"></div>
+    <div class="panel">
+      <div class="label">target — posizioni da riempire</div>
+      <div class="slots" id="lv1-targetSlots"></div>
+    </div>
+    <div class="panel">
+      <div class="label">progresso derivazione</div>
+      <div class="slots" id="lv1-progressSlots"></div>
+      <div class="rules" id="lv1-rules"></div>
+      <div class="actions">
+        <button class="ghost" id="lv1-undoBtn" onclick="lv1undo()">← annulla ultima mossa</button>
+        <button class="ghost" onclick="lv1restart()">↺ ricomincia</button>
+        <button class="ghost" onclick="lv1newTarget()">▸ nuovo target</button>
+      </div>
+      <div class="status" id="lv1-status"></div>
+    </div>
+  </div>
+
+  <!-- LEVEL 2 -->
+  <div id="view-lv2" class="hidden">
+    <div class="gtype">grammatica di tipo 3 (regolare), lineare destra</div>
+    <div class="sub">produzioni: S → 0S | 1S | 1 — linguaggio: (0|1)*1</div>
+    <div class="panel">
+      <div class="label">target — posizioni da riempire</div>
+      <div class="slots" id="lv2-targetSlots"></div>
+    </div>
+    <div class="panel">
+      <div class="label">progresso derivazione</div>
+      <div class="slots" id="lv2-progressSlots"></div>
+      <div class="rules" id="lv2-rules"></div>
+      <div class="actions">
+        <button class="ghost" id="lv2-undoBtn" onclick="lv2undo()">← annulla ultima mossa</button>
+        <button class="ghost" onclick="lv2restart()">↺ ricomincia</button>
+        <button class="ghost" onclick="lv2newTarget()">▸ nuovo target</button>
+      </div>
+      <div class="status" id="lv2-status"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="box">
+    <h2 id="overlayTitle">livello superato</h2>
+    <p id="overlaytext"></p>
+    <div id="overlayActions"></div>
+  </div>
+</div>
+
+<script>
+let progress = {lv1cleared:false, lv2cleared:false};
+
+function showMenu(){
+  document.getElementById('view-menu').classList.remove('hidden');
+  document.getElementById('view-lv1').classList.add('hidden');
+  document.getElementById('view-lv2').classList.add('hidden');
+  document.getElementById('levelBadge').textContent = 'menu';
+}
+
+function goLevel(n){
+  document.getElementById('view-menu').classList.add('hidden');
+  document.getElementById('view-lv1').classList.toggle('hidden', n!==1);
+  document.getElementById('view-lv2').classList.toggle('hidden', n!==2);
+  document.getElementById('levelBadge').textContent = 'livello ' + n;
+  if(n===1) lv1newTarget();
+  if(n===2) lv2newTarget();
+}
+
+function closeOverlay(){
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// ---------- LIVELLO 1 ----------
+const SYMBOLS = ['a','b','0','1'];
+let l1_symbol='a', l1_direction='dx', l1_target='', l1_placed=0, l1_sPresent=true, l1_attempts=0, l1_failed=false;
+
+function lv1randomTarget(){
+  const n = 2 + Math.floor(Math.random()*5);
+  return l1_symbol.repeat(n);
+}
+function lv1newTarget(){
+  l1_symbol = SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)];
+  l1_direction = Math.random()<0.5 ? 'dx':'sx';
+  l1_target = lv1randomTarget();
+  lv1restart();
+}
+function lv1restart(){
+  l1_placed=0; l1_sPresent=true; l1_attempts=0; l1_failed=false;
+  lv1render();
+}
+function lv1ruleLabels(){
+  return l1_direction==='dx'
+    ? {expand:`S → ${l1_symbol}S`, close:`S → ${l1_symbol}`}
+    : {expand:`S → S${l1_symbol}`, close:`S → ${l1_symbol}`};
+}
+function lv1applyExpand(){
+  if(!l1_sPresent || l1_failed) return;
+  l1_placed++; l1_attempts++;
+  if(l1_placed >= l1_target.length) l1_failed = true;
+  lv1render();
+}
+function lv1applyClose(){
+  if(!l1_sPresent || l1_failed) return;
+  l1_placed++; l1_sPresent=false; l1_attempts++;
+  if(l1_placed !== l1_target.length) l1_failed = true;
+  lv1render();
+  if(!l1_failed) setTimeout(()=>lv1win(), 300);
+}
+function lv1undo(){
+  if(l1_attempts===0 && l1_placed===0) return;
+  if(!l1_sPresent) l1_sPresent = true;
+  if(l1_placed>0) l1_placed--;
+  l1_failed = false;
+  lv1render();
+}
+function lv1win(){
+  progress.lv1cleared = true;
+  document.getElementById('overlayTitle').textContent = 'livello superato';
+  document.getElementById('overlaytext').textContent = `"${l1_target}" raggiunta in ${l1_attempts} mosse.`;
+  document.getElementById('overlayActions').innerHTML = `
+    <button class="rule" onclick="closeOverlay(); lv1newTarget();">altro target, livello 1 ▸</button>
+    <button class="rule" onclick="closeOverlay(); goLevel(2);">avanti: livello 2 ▸▸</button>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('menuLv2').classList.remove('locked');
+}
+function lv1render(){
+  const type = l1_direction==='dx' ? 'lineare destra' : 'lineare sinistra';
+  document.getElementById('lv1-gtype').textContent = `grammatica di tipo 3 (regolare) — ${type}`;
+  const rl = lv1ruleLabels();
+  document.getElementById('lv1-grammarLine').textContent = `produzioni: ${rl.expand} | ${rl.close}`;
+  document.getElementById('lv1-targetSlots').innerHTML =
+    l1_target.split('').map(ch=>`<div class="slot filled" style="opacity:.5">${ch}</div>`).join('');
+  let html='';
+  for(let i=0;i<l1_placed;i++) html += `<div class="slot filled">${l1_symbol}</div>`;
+  if(l1_sPresent) html += `<div class="slot pending">S</div>`;
+  for(let i=l1_placed+(l1_sPresent?1:0); i<l1_target.length; i++) html += `<div class="slot pending">·</div>`;
+  document.getElementById('lv1-progressSlots').innerHTML = html;
+  const disabled = !l1_sPresent || l1_failed;
+  document.getElementById('lv1-rules').innerHTML = `
+    <button class="rule" ${disabled?'disabled':''} onclick="lv1applyExpand()">${rl.expand}</button>
+    <button class="rule" ${disabled?'disabled':''} onclick="lv1applyClose()">${rl.close}</button>
+  `;
+  document.getElementById('lv1-undoBtn').disabled = (l1_placed===0);
+  const status = document.getElementById('lv1-status');
+  if(l1_failed){
+    status.className='status err';
+    status.innerHTML = `fuori target: ${l1_placed} contro ${l1_target.length} richieste — annulla o ricomincia`;
+  } else if(!l1_sPresent){
+    status.className='status'; status.innerHTML = `<b>completato</b>`;
+  } else {
+    status.className='status';
+    status.innerHTML = `posizioni riempite: <b>${l1_placed}</b> / ${l1_target.length}`;
+  }
+}
+
+// ---------- LIVELLO 2 ----------
+let l2_target='', l2_placed=[], l2_sPresent=true, l2_attempts=0, l2_failed=false;
+
+function lv2randomTarget(){
+  const n = 3 + Math.floor(Math.random()*4);
+  let s='';
+  for(let i=0;i<n-1;i++) s += Math.random()<0.5?'0':'1';
+  return s+'1';
+}
+function lv2newTarget(){
+  l2_target = lv2randomTarget();
+  lv2restart();
+}
+function lv2restart(){
+  l2_placed=[]; l2_sPresent=true; l2_attempts=0; l2_failed=false;
+  lv2render();
+}
+function lv2applyExpand(bit){
+  if(!l2_sPresent || l2_failed) return;
+  l2_placed.push(bit); l2_attempts++;
+  if(l2_placed.length >= l2_target.length) l2_failed = true;
+  lv2render();
+}
+function lv2applyClose(){
+  if(!l2_sPresent || l2_failed) return;
+  l2_placed.push('1'); l2_sPresent=false; l2_attempts++;
+  lv2render();
+  if(l2_placed.join('') === l2_target) setTimeout(()=>lv2win(), 300);
+  else l2_failed = true;
+}
+function lv2undo(){
+  if(l2_placed.length===0) return;
+  if(!l2_sPresent) l2_sPresent=true;
+  l2_placed.pop();
+  l2_failed=false;
+  lv2render();
+}
+function lv2win(){
+  progress.lv2cleared = true;
+  document.getElementById('overlayTitle').textContent = 'livello superato';
+  document.getElementById('overlaytext').textContent = `"${l2_target}" raggiunta in ${l2_attempts} mosse.`;
+  document.getElementById('overlayActions').innerHTML = `
+    <button class="rule" onclick="closeOverlay(); lv2newTarget();">altro target, livello 2 ▸</button>
+    <button class="rule" onclick="closeOverlay(); showMenu();">torna al menu</button>
+  `;
+  document.getElementById('overlay').classList.add('show');
+}
+function lv2render(){
+  document.getElementById('lv2-targetSlots').innerHTML =
+    l2_target.split('').map(ch=>`<div class="slot filled" style="opacity:.5">${ch}</div>`).join('');
+  let html='';
+  l2_placed.forEach((bit,i)=>{
+    const correct = l2_target[i]===bit;
+    html += `<div class="slot ${correct?'filled':'wrong'}">${bit}</div>`;
+  });
+  if(l2_sPresent) html += `<div class="slot pending">S</div>`;
+  for(let i=l2_placed.length+(l2_sPresent?1:0); i<l2_target.length; i++) html += `<div class="slot pending">·</div>`;
+  document.getElementById('lv2-progressSlots').innerHTML = html;
+  const disabled = !l2_sPresent || l2_failed;
+  document.getElementById('lv2-rules').innerHTML = `
+    <button class="rule" ${disabled?'disabled':''} onclick="lv2applyExpand('0')">S → 0S</button>
+    <button class="rule" ${disabled?'disabled':''} onclick="lv2applyExpand('1')">S → 1S</button>
+    <button class="rule" ${disabled?'disabled':''} onclick="lv2applyClose()">S → 1</button>
+  `;
+  document.getElementById('lv2-undoBtn').disabled = (l2_placed.length===0);
+  const status = document.getElementById('lv2-status');
+  if(l2_failed){
+    status.className='status err';
+    status.innerHTML = `sequenza sbagliata rispetto al target — annulla la mossa in rosso o ricomincia`;
+  } else if(!l2_sPresent){
+    status.className='status'; status.innerHTML = `<b>completato</b>`;
+  } else {
+    status.className='status';
+    status.innerHTML = `posizioni piazzate: <b>${l2_placed.length}</b> / ${l2_target.length}`;
+  }
+}
+
+showMenu();
+</script>
+</body>
+</html>
