@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Theoretical</title>
+<title>Theoretical - A computer game</title>
 <style>
   :root{
     --bg:#0b0f0d; --panel:#101614; --line:#1f2b26; --fg:#c8e6c9;
@@ -181,9 +181,11 @@ function goLevel(n){
   document.getElementById('view-menu').classList.add('hidden');
   document.getElementById('view-lv1').classList.toggle('hidden', n!==1);
   document.getElementById('view-lv2').classList.toggle('hidden', n!==2);
+  document.getElementById('view-lv3').classList.toggle('hidden', n!==3);
   document.getElementById('levelBadge').textContent = 'livello ' + n;
   if(n===1) lv1newTarget();
   if(n===2) lv2newTarget();
+  if(n===3) lv3newTarget();
 }
 
 function closeOverlay(){
@@ -317,7 +319,7 @@ function lv2win(){
   document.getElementById('overlaytext').textContent = `"${l2_target}" raggiunta in ${l2_attempts} mosse.`;
   document.getElementById('overlayActions').innerHTML = `
     <button class="rule" onclick="closeOverlay(); lv2newTarget();">altro target, livello 2 ▸</button>
-    <button class="rule" onclick="closeOverlay(); showMenu();">torna al menu</button>
+    <button class="rule" onclick="closeOverlay(); goLevel(3);">avanti: livello 3 ▸▸</button>
   `;
   document.getElementById('overlay').classList.add('show');
 }
@@ -348,6 +350,86 @@ function lv2render(){
   } else {
     status.className='status';
     status.innerHTML = `posizioni piazzate: <b>${l2_placed.length}</b> / ${l2_target.length}`;
+  }
+}
+
+// ---------- LIVELLO 3 ----------
+// S -> aSb | ab : ogni "aSb" aggiunge una coppia esterna (a a sinistra, b a destra),
+// "ab" chiude il centro. layers = numero di aSb applicati; n = layers massimi + 1.
+let l3_n=2, l3_target='', l3_layers=0, l3_closed=false, l3_attempts=0, l3_failed=false;
+
+function lv3randomTarget(){
+  l3_n = 2 + Math.floor(Math.random()*3); // n = 2..4
+  return 'a'.repeat(l3_n) + 'b'.repeat(l3_n);
+}
+function lv3newTarget(){
+  l3_target = lv3randomTarget();
+  lv3restart();
+}
+function lv3restart(){
+  l3_layers=0; l3_closed=false; l3_attempts=0; l3_failed=false;
+  lv3render();
+}
+function lv3canExpand(){ return !l3_closed && !l3_failed && l3_layers < l3_n-1; }
+function lv3canClose(){ return !l3_closed && !l3_failed && l3_layers === l3_n-1; }
+
+function lv3applyExpand(){
+  if(!lv3canExpand()) return;
+  l3_layers++; l3_attempts++;
+  lv3render();
+}
+function lv3applyClose(){
+  if(!lv3canClose()) return;
+  l3_closed = true; l3_attempts++;
+  lv3render();
+  setTimeout(()=>lv3win(), 300);
+}
+function lv3undo(){
+  if(l3_closed){ l3_closed = false; lv3render(); return; }
+  if(l3_layers>0){ l3_layers--; l3_failed=false; lv3render(); }
+}
+function lv3win(){
+  progress.lv3cleared = true;
+  document.getElementById('overlayTitle').textContent = 'livello superato';
+  document.getElementById('overlaytext').textContent = `"${l3_target}" raggiunta in ${l3_attempts} mosse — aⁿbⁿ con n=${l3_n}.`;
+  document.getElementById('overlayActions').innerHTML = `
+    <button class="rule" onclick="closeOverlay(); lv3newTarget();">altro target, livello 3 ▸</button>
+    <button class="rule" onclick="closeOverlay(); showMenu();">torna al menu</button>
+  `;
+  document.getElementById('overlay').classList.add('show');
+}
+function lv3render(){
+  document.getElementById('lv3-targetSlots').innerHTML =
+    l3_target.split('').map(ch=>`<div class="slot filled" style="opacity:.5">${ch}</div>`).join('');
+
+  // ricostruisco la stringa attuale dall'esterno verso il centro
+  const total = l3_n*2;
+  let cells = new Array(total).fill(null);
+  for(let i=0;i<l3_layers;i++){ cells[i] = 'a'; cells[total-1-i] = 'b'; }
+  if(l3_closed){
+    cells[l3_layers] = 'a';
+    cells[total-1-l3_layers] = 'b';
+  }
+  let html = '';
+  for(let i=0;i<total;i++){
+    if(cells[i] !== null) html += `<div class="slot filled">${cells[i]}</div>`;
+    else if(i === l3_layers && !l3_closed) html += `<div class="slot pending">S</div>`;
+    else html += `<div class="slot pending">·</div>`;
+  }
+  document.getElementById('lv3-progressSlots').innerHTML = html;
+
+  document.getElementById('lv3-rules').innerHTML = `
+    <button class="rule" ${lv3canExpand()?'':'disabled'} onclick="lv3applyExpand()">S → aSb</button>
+    <button class="rule" ${lv3canClose()?'':'disabled'} onclick="lv3applyClose()">S → ab</button>
+  `;
+  document.getElementById('lv3-undoBtn').disabled = (l3_layers===0 && !l3_closed);
+
+  const status = document.getElementById('lv3-status');
+  if(l3_closed){
+    status.className='status'; status.innerHTML = `<b>completato</b>`;
+  } else {
+    status.className='status';
+    status.innerHTML = `coppie esterne piazzate: <b>${l3_layers}</b> / ${l3_n-1} — poi chiudi con S → ab`;
   }
 }
 
