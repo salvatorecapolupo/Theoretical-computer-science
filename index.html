@@ -92,6 +92,34 @@
       </div>
       <div class="go">gioca ▸</div>
     </div>
+    <div class="menu-item" onclick="goLevel(4)">
+      <div>
+        <div class="name">livello 4 — palindromi</div>
+        <div class="desc">context-free non regolare (tipo 2): S → aSa | bSb | ε — scegli il lato giusto a ogni strato</div>
+      </div>
+      <div class="go">gioca ▸</div>
+    </div>
+    <div class="menu-item" onclick="goLevel(5)">
+      <div>
+        <div class="name">livello 5 — dipendenza dal contesto</div>
+        <div class="desc">context-sensitive (tipo 1): linguaggio aⁿbⁿcⁿ, n piccolo</div>
+      </div>
+      <div class="go">gioca ▸</div>
+    </div>
+    <div class="menu-item" onclick="goLevel(6)">
+      <div>
+        <div class="name">livello 6 — riordino</div>
+        <div class="desc">context-sensitive (tipo 1): stesso linguaggio aⁿbⁿcⁿ, n medio, più riordini necessari</div>
+      </div>
+      <div class="go">gioca ▸</div>
+    </div>
+    <div class="menu-item" onclick="goLevel(7)">
+      <div>
+        <div class="name">livello 7 — a piena scala</div>
+        <div class="desc">context-sensitive (tipo 1): aⁿbⁿcⁿ, n grande</div>
+      </div>
+      <div class="go">gioca ▸</div>
+    </div>
   </div>
 
   <!-- LEVEL 1 -->
@@ -157,6 +185,48 @@
     </div>
   </div>
 
+  <!-- LEVEL 4 -->
+  <div id="view-lv4" class="hidden">
+    <div class="gtype">grammatica di tipo 2 (context-free), non regolare</div>
+    <div class="sub">produzioni: S → aSa | bSb | ε — linguaggio: palindromi di lunghezza pari su {a,b}</div>
+    <div class="panel">
+      <div class="label">target — posizioni da riempire</div>
+      <div class="slots" id="lv4-targetSlots"></div>
+    </div>
+    <div class="panel">
+      <div class="label">progresso derivazione (si costruisce dall'esterno verso il centro, un lato alla volta)</div>
+      <div class="slots" id="lv4-progressSlots"></div>
+      <div class="rules" id="lv4-rules"></div>
+      <div class="actions">
+        <button class="ghost" id="lv4-undoBtn" onclick="lv4undo()">← annulla ultima mossa</button>
+        <button class="ghost" onclick="lv4restart()">↺ ricomincia</button>
+        <button class="ghost" onclick="lv4newTarget()">▸ nuovo target</button>
+      </div>
+      <div class="status" id="lv4-status"></div>
+    </div>
+  </div>
+
+  <!-- LEVELS 5-7: context-sensitive, motore generico condiviso -->
+  <div id="view-cs" class="hidden">
+    <div class="gtype" id="cs-gtype">grammatica di tipo 1 (context-sensitive)</div>
+    <div class="sub" id="cs-sub">produzioni: S → aSBC | aBC, CB → BC, aB → ab, bB → bb, bC → bc, cC → cc — linguaggio: aⁿbⁿcⁿ</div>
+    <div class="panel">
+      <div class="label">target — posizioni da riempire</div>
+      <div class="slots" id="cs-targetSlots"></div>
+    </div>
+    <div class="panel">
+      <div class="label">forma sentenziale corrente — clicca un simbolo evidenziato per applicare una regola</div>
+      <div class="slots" id="cs-progressSlots"></div>
+      <div class="rules" id="cs-rules"></div>
+      <div class="actions">
+        <button class="ghost" id="cs-undoBtn" onclick="csundo()">← annulla ultima mossa</button>
+        <button class="ghost" onclick="csrestart()">↺ ricomincia</button>
+        <button class="ghost" onclick="csnewTarget()">▸ nuovo target</button>
+      </div>
+      <div class="status" id="cs-status"></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="overlay" id="overlay">
@@ -174,6 +244,9 @@ function showMenu(){
   document.getElementById('view-menu').classList.remove('hidden');
   document.getElementById('view-lv1').classList.add('hidden');
   document.getElementById('view-lv2').classList.add('hidden');
+  document.getElementById('view-lv3').classList.add('hidden');
+  document.getElementById('view-lv4').classList.add('hidden');
+  document.getElementById('view-cs').classList.add('hidden');
   document.getElementById('levelBadge').textContent = 'menu';
 }
 
@@ -182,10 +255,14 @@ function goLevel(n){
   document.getElementById('view-lv1').classList.toggle('hidden', n!==1);
   document.getElementById('view-lv2').classList.toggle('hidden', n!==2);
   document.getElementById('view-lv3').classList.toggle('hidden', n!==3);
+  document.getElementById('view-lv4').classList.toggle('hidden', n!==4);
+  document.getElementById('view-cs').classList.toggle('hidden', n<5);
   document.getElementById('levelBadge').textContent = 'livello ' + n;
   if(n===1) lv1newTarget();
   if(n===2) lv2newTarget();
   if(n===3) lv3newTarget();
+  if(n===4) lv4newTarget();
+  if(n>=5) csgoTo(n);
 }
 
 function closeOverlay(){
@@ -394,7 +471,7 @@ function lv3win(){
   document.getElementById('overlaytext').textContent = `"${l3_target}" raggiunta in ${l3_attempts} mosse — aⁿbⁿ con n=${l3_n}.`;
   document.getElementById('overlayActions').innerHTML = `
     <button class="rule" onclick="closeOverlay(); lv3newTarget();">altro target, livello 3 ▸</button>
-    <button class="rule" onclick="closeOverlay(); showMenu();">torna al menu</button>
+    <button class="rule" onclick="closeOverlay(); goLevel(4);">avanti: livello 4 ▸▸</button>
   `;
   document.getElementById('overlay').classList.add('show');
 }
@@ -430,6 +507,245 @@ function lv3render(){
   } else {
     status.className='status';
     status.innerHTML = `coppie esterne piazzate: <b>${l3_layers}</b> / ${l3_n-1} — poi chiudi con S → ab`;
+  }
+}
+
+// ---------- LIVELLO 4 — palindromi (context-free, con scelta a ogni strato) ----------
+// S -> aSa | bSb | ε. A ogni strato il giocatore legge i due caratteri esterni
+// ancora scoperti nel target e sceglie la regola che li produce entrambi.
+let l4_target='', l4_layers=0, l4_closed=false, l4_attempts=0, l4_failed=false, l4_history=[];
+
+function lv4randomTarget(){
+  const half = 2 + Math.floor(Math.random()*3); // metà stringa: 2..4 -> lunghezza 4..8
+  let left = '';
+  for(let i=0;i<half;i++) left += Math.random()<0.5 ? 'a':'b';
+  const right = left.split('').reverse().join('');
+  return left + right;
+}
+function lv4newTarget(){
+  l4_target = lv4randomTarget();
+  lv4restart();
+}
+function lv4restart(){
+  l4_layers=0; l4_closed=false; l4_attempts=0; l4_failed=false; l4_history=[];
+  lv4render();
+}
+function lv4half(){ return l4_target.length/2; }
+function lv4canExpand(){ return !l4_closed && !l4_failed && l4_layers < lv4half(); }
+function lv4canClose(){ return !l4_closed && !l4_failed && l4_layers === lv4half(); }
+
+function lv4applyExpand(sym){
+  if(!lv4canExpand()) return;
+  const outerLeft = l4_target[l4_layers];
+  const outerRight = l4_target[l4_target.length-1-l4_layers];
+  const correct = (outerLeft === sym && outerRight === sym);
+  l4_layers++; l4_attempts++;
+  if(!correct) l4_failed = true;
+  l4_history.push(sym);
+  lv4render();
+}
+function lv4applyClose(){
+  if(!lv4canClose()) return;
+  l4_closed = true; l4_attempts++;
+  lv4render();
+  setTimeout(()=>lv4win(), 300);
+}
+function lv4undo(){
+  if(l4_closed){ l4_closed=false; lv4render(); return; }
+  if(l4_layers>0){ l4_layers--; l4_failed=false; l4_history.pop(); lv4render(); }
+}
+function lv4win(){
+  document.getElementById('overlayTitle').textContent = 'livello superato';
+  document.getElementById('overlaytext').textContent = `"${l4_target}" raggiunta in ${l4_attempts} mosse.`;
+  document.getElementById('overlayActions').innerHTML = `
+    <button class="rule" onclick="closeOverlay(); lv4newTarget();">altro target, livello 4 ▸</button>
+    <button class="rule" onclick="closeOverlay(); goLevel(5);">avanti: livello 5 ▸▸</button>
+  `;
+  document.getElementById('overlay').classList.add('show');
+}
+function lv4render(){
+  document.getElementById('lv4-targetSlots').innerHTML =
+    l4_target.split('').map(ch=>`<div class="slot filled" style="opacity:.5">${ch}</div>`).join('');
+
+  const total = l4_target.length;
+  let cells = new Array(total).fill(null);
+  const hist = l4_history || [];
+  for(let i=0;i<l4_layers;i++){
+    const sym = hist[i];
+    const ok = (l4_target[i]===sym && l4_target[total-1-i]===sym);
+    cells[i] = {ch:sym, ok};
+    cells[total-1-i] = {ch:sym, ok};
+  }
+  if(l4_closed){ /* nulla da aggiungere: lunghezza pari, chiusura con ε */ }
+  let html = '';
+  for(let i=0;i<total;i++){
+    if(cells[i] !== null) html += `<div class="slot ${cells[i].ok?'filled':'wrong'}">${cells[i].ch}</div>`;
+    else if(i === l4_layers && !l4_closed) html += `<div class="slot pending">S</div>`;
+    else html += `<div class="slot pending">·</div>`;
+  }
+  document.getElementById('lv4-progressSlots').innerHTML = html;
+
+  const disabled = !lv4canExpand();
+  document.getElementById('lv4-rules').innerHTML = `
+    <button class="rule" ${disabled?'disabled':''} onclick="lv4applyExpand('a')">S → aSa</button>
+    <button class="rule" ${disabled?'disabled':''} onclick="lv4applyExpand('b')">S → bSb</button>
+    <button class="rule" ${lv4canClose()?'':'disabled'} onclick="lv4applyClose()">S → ε</button>
+  `;
+  document.getElementById('lv4-undoBtn').disabled = (l4_layers===0 && !l4_closed);
+
+  const status = document.getElementById('lv4-status');
+  if(l4_failed){
+    status.className='status err';
+    status.innerHTML = `strato sbagliato (quadratino rosso) — annulla o ricomincia`;
+  } else if(l4_closed){
+    status.className='status'; status.innerHTML = `<b>completato</b>`;
+  } else {
+    status.className='status';
+    status.innerHTML = `strati piazzati: <b>${l4_layers}</b> / ${lv4half()} — leggi i due caratteri esterni ancora scoperti`;
+  }
+}
+
+// ---------- LIVELLI 5-7 — context-sensitive, motore generico ----------
+// Forma sentenziale = array di simboli (terminali a,b,c minuscoli; non terminali S,B,C).
+// Le produzioni possono dipendere dal contesto (pattern di più simboli contigui).
+const CS_PRODUCTIONS = [
+  {pattern:['S'], replacement:['a','S','B','C'], label:'S → aSBC'},
+  {pattern:['S'], replacement:['a','B','C'],       label:'S → aBC'},
+  {pattern:['C','B'], replacement:['B','C'],       label:'CB → BC'},
+  {pattern:['a','B'], replacement:['a','b'],       label:'aB → ab'},
+  {pattern:['b','B'], replacement:['b','b'],       label:'bB → bb'},
+  {pattern:['b','C'], replacement:['b','c'],       label:'bC → bc'},
+  {pattern:['c','C'], replacement:['c','c'],       label:'cC → cc'},
+];
+
+let cs_level = 5;
+let cs_n = 2;
+let cs_target = '';
+let cs_tokens = ['S'];
+let cs_history = [];
+let cs_attempts = 0;
+let cs_pendingIdx = null;
+
+function csnRange(level){
+  if(level===5) return [2,2];
+  if(level===6) return [3,4];
+  return [4,5]; // livello 7
+}
+function csgoTo(level){
+  cs_level = level;
+  document.getElementById('cs-gtype').textContent =
+    `grammatica di tipo 1 (context-sensitive) — livello ${level}`;
+  csnewTarget();
+}
+function csrandomN(){
+  const [lo,hi] = csnRange(cs_level);
+  return lo + Math.floor(Math.random()*(hi-lo+1));
+}
+function csnewTarget(){
+  cs_n = csrandomN();
+  cs_target = 'a'.repeat(cs_n) + 'b'.repeat(cs_n) + 'c'.repeat(cs_n);
+  csrestart();
+}
+function csrestart(){
+  cs_tokens = ['S'];
+  cs_history = [];
+  cs_attempts = 0;
+  cs_pendingIdx = null;
+  csrender();
+}
+function csfindMatches(){
+  const matches = [];
+  for(let i=0;i<cs_tokens.length;i++){
+    CS_PRODUCTIONS.forEach((p, pIdx)=>{
+      if(i+p.pattern.length <= cs_tokens.length){
+        let ok = true;
+        for(let k=0;k<p.pattern.length;k++) if(cs_tokens[i+k]!==p.pattern[k]) ok=false;
+        if(ok) matches.push({start:i, pIdx});
+      }
+    });
+  }
+  return matches;
+}
+function csapply(start, pIdx){
+  const p = CS_PRODUCTIONS[pIdx];
+  cs_history.push(cs_tokens.slice());
+  cs_tokens = cs_tokens.slice(0,start).concat(p.replacement).concat(cs_tokens.slice(start+p.pattern.length));
+  cs_attempts++;
+  cs_pendingIdx = null;
+  csrender();
+  const isTerminal = cs_tokens.every(t => t==='a'||t==='b'||t==='c');
+  if(isTerminal){
+    if(cs_tokens.join('') === cs_target) setTimeout(()=>cswin(), 300);
+  }
+}
+function csclickToken(idx){
+  const matches = csfindMatches().filter(m=>m.start===idx);
+  if(matches.length===0) return;
+  if(matches.length===1){ csapply(matches[0].start, matches[0].pIdx); return; }
+  cs_pendingIdx = idx;
+  csrender();
+}
+function csundo(){
+  if(cs_history.length===0) return;
+  cs_tokens = cs_history.pop();
+  cs_pendingIdx = null;
+  csrender();
+}
+function cswin(){
+  document.getElementById('overlayTitle').textContent = 'livello superato';
+  document.getElementById('overlaytext').textContent = `"${cs_target}" raggiunta in ${cs_attempts} mosse — aⁿbⁿcⁿ con n=${cs_n} (livello ${cs_level}).`;
+  const nextBtn = cs_level < 7
+    ? `<button class="rule" onclick="closeOverlay(); goLevel(${cs_level+1});">avanti: livello ${cs_level+1} ▸▸</button>`
+    : `<button class="rule" onclick="closeOverlay(); showMenu();">torna al menu</button>`;
+  document.getElementById('overlayActions').innerHTML = `
+    <button class="rule" onclick="closeOverlay(); csnewTarget();">altro target, livello ${cs_level} ▸</button>
+    ${nextBtn}
+  `;
+  document.getElementById('overlay').classList.add('show');
+}
+function csrender(){
+  document.getElementById('cs-targetSlots').innerHTML =
+    cs_target.split('').map(ch=>`<div class="slot filled" style="opacity:.5">${ch}</div>`).join('');
+
+  const matches = csfindMatches();
+  const startsWithMatch = new Set(matches.map(m=>m.start));
+
+  document.getElementById('cs-progressSlots').innerHTML = cs_tokens.map((tok, i) => {
+    const isTerm = (tok==='a'||tok==='b'||tok==='c');
+    let cls = 'slot ' + (isTerm ? 'filled' : 'pending');
+    let onclick = '';
+    if(!isTerm && startsWithMatch.has(i)){
+      cls += ' pending';
+      onclick = ` onclick="csclickToken(${i})" style="cursor:pointer; border-style:dashed; border-color:var(--accent2); color:var(--accent2)${i===cs_pendingIdx?';background:rgba(255,179,71,.15)':''}"`;
+    }
+    return `<div class="${cls}"${onclick}>${tok}</div>`;
+  }).join('');
+
+  const rulesEl = document.getElementById('cs-rules');
+  if(cs_pendingIdx !== null){
+    const opts = matches.filter(m=>m.start===cs_pendingIdx);
+    rulesEl.innerHTML = opts.map(m =>
+      `<button class="rule" onclick="csapply(${m.start},${m.pIdx})">${CS_PRODUCTIONS[m.pIdx].label}</button>`
+    ).join('');
+  } else {
+    rulesEl.innerHTML = `<span style="font-size:11px; color:var(--dim)">clicca un simbolo con bordo tratteggiato per vedere le regole applicabili lì</span>`;
+  }
+
+  document.getElementById('cs-undoBtn').disabled = (cs_history.length===0);
+
+  const status = document.getElementById('cs-status');
+  const isTerminal = cs_tokens.every(t => t==='a'||t==='b'||t==='c');
+  if(isTerminal && cs_tokens.join('') !== cs_target){
+    status.className='status err';
+    status.innerHTML = `stringa terminale ma non corrisponde al target — annulla o ricomincia`;
+  } else if(isTerminal){
+    status.className='status'; status.innerHTML = `<b>completato</b>`;
+  } else if(matches.length===0){
+    status.className='status err';
+    status.innerHTML = `nessuna regola applicabile da qui — vicolo cieco, annulla o ricomincia`;
+  } else {
+    status.className='status';
+    status.innerHTML = `mosse fatte: <b>${cs_attempts}</b> — forma sentenziale: ${cs_tokens.length} simboli`;
   }
 }
 
